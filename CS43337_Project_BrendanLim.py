@@ -1,3 +1,4 @@
+#tokens are going to be strings because python doesn't support define
 token_list = {
       "(": "PAREN_OPEN",
       ")": "PAREN_CLOSE",
@@ -16,6 +17,7 @@ token_list = {
       ";": "STMT_END"
    }
 
+#list of keywords
 keywords = ["if", "then", "else", "end", 
             "for", "while", "do", "end", 
             "not", "and", "or", 
@@ -24,8 +26,7 @@ keywords = ["if", "then", "else", "end",
 #It then adds these lexemes into a list of lexemes to be examined for syntax by the parser
 #This code is very heavily based off of the code found in the book, except in Python
 def lexer(fileHandle):
-   #tokens are going to be strings because python doesn't support define
-
+   
    lexeme = ''
    nextChar = fileHandle.read(1)
    if not nextChar:
@@ -194,44 +195,62 @@ def parser(fileHandle):
          #print("ERROR: VALUE")
          return ("INVALID_VALUE", "VALUE")
 
+   #factor = value <comp_op> value
    def factor():
       #print("Entering factor")
+      #comparison operators for convenience
       comparison_ops = [">", ">=", "<", "<=", "==", "!="] 
       value1 = value()
+      #if value does not return an error
       if (value1 != ("ERROR", "VALUE")):
+         #while there is more comparison operators, keep calculating and iterating through them 
          while (nextLexeme[1] in comparison_ops):
             comp_value = nextLexeme[1]
             getNextLexeme()
             value2 = value()
             #print("Exiting factor")
+            #calculate/condense values
+            #greater than
             if (comp_value == comparison_ops[0]):
                value1 = value1 > value2
+            #greater than or equal to
             elif (comp_value == comparison_ops[1]):
                value1 = value1 >= value2
+            #less than
             elif (comp_value == comparison_ops[2]):
                value1 = value1 < value2
+            #less than or equal to
             elif (comp_value == comparison_ops[3]):
                value1 = value1 <= value2
+            #equal to
             elif (comp_value == comparison_ops[4]):
                value1 = value1 == value2
+            #not equal to
             elif (comp_value == comparison_ops[5]):
                value1 = value1 != value2
             else:
                #error
                return ("COMP_OPs", "FACTOR")
       #print("Exiting factor:" + str(value1))
+      #return calculation of values
       return value1
    
+   #term = factor <mult_op> factor
    def term():
       #print("Entering term")
+      #multiplcation operators for convenience
       mult_ops = ["*", "/", "%"]
+      #get the first factor
       factor1 = factor()
       if (type(factor1) is not tuple):
+         #while there is more comparison operators, keep calculating and iterating through them 
          while(nextLexeme[1] in mult_ops):
             mult_value = nextLexeme[1]
+            #get the next factor
             getNextLexeme()
             factor2 = factor()
             #print("Exiting term")
+            #calculate/condense the factors
             if (mult_value == mult_ops[0]):
                factor1 = factor1 * factor2
             elif (mult_value == mult_ops[1]):
@@ -242,28 +261,37 @@ def parser(fileHandle):
                #error
                return ("MULT_OPS", "TERM")
       #print("Exiting term:" + str(factor1)) 
+      #return the calculated factors
       return factor1
 
+   #n_expr = term <add_op> term
+   #adds together terms
    def n_expr():
       #print("Entering n_expr")
+      #get first term
       term1 = term()
+      #addition operators for convenience
       add_ops = ["+", "-"]
       if (type(term1) is not tuple):
+         #keep iterating through terms as long as there are addition operators
          while (nextLexeme[0] == "OP_ADD" or nextLexeme[0] == "OP_SUB"):
             add_value = nextLexeme[1]
+            #get the second term
             getNextLexeme()
             term2 = term()
-         
+            #calculate/condense terms
             if (add_value == add_ops[0]):
                term1 = term1 + term2
             elif (add_value == add_ops[1]):
                term1 = term1 - term2
             else:
-               #error
+               #error, invalid addition operator
                return ("ADD_OPs", "N_EXPR")
       #print("Exiting n_expr:", str(term1))
+      #return calculated terms
       return term1
 
+   #expr = n_expr <log_op> n_expr
    def expr():
       #print("Entering expr")
       n1 = n_expr()
@@ -282,17 +310,23 @@ def parser(fileHandle):
       #print("Exiting expr:" + str(n1))
       return n1
 
+   #stmt is can be a print, get, assign, if, for, or while statement
+   #if_execute tells stmt whether to execute the desired code or just parse, used because of if-else statements 
    def stmt(if_execute):
       nonlocal nextLexeme
       #print("Entering stmt")
-      #print
+
+      #print statement 
+      #print = print <expr>|<string>
       if (nextLexeme[1] == "print"):
          #print("print statement")
          getNextLexeme()
+         #string
          if (nextLexeme[0] == "STRING"):
             if (if_execute):
                print(nextLexeme[1], end='')
             getNextLexeme()
+         #expr
          else:
             if (if_execute):
                result = expr()
@@ -300,7 +334,8 @@ def parser(fileHandle):
                   print(result)
                else:
                   return result
-      #input
+
+      #input statement
       elif (nextLexeme[1] == "get"):
          getNextLexeme()
          if (nextLexeme[0] == "ID"):
@@ -312,13 +347,17 @@ def parser(fileHandle):
                   variables[nextLexeme[1]] = userInput
                getNextLexeme()
                #print(variables)
+
       #if statement 
       elif (nextLexeme[1] == "if"):
          getNextLexeme()
+         #get and calculate the expr value
          expr_value = expr()
          if (type(expr_value) is tuple):
             return result
+         #then keyword
          if (nextLexeme[1] == "then"):
+            #if the expr comes out true, execute the code only if this is in a valid execution block
             if(expr_value):
                getNextLexeme()
                stmt_list(if_execute, 1)
@@ -326,30 +365,37 @@ def parser(fileHandle):
                #ignore block of code until else statement reached 
                getNextLexeme()
                stmt_list(0,1)
+            #else keyword
             if (nextLexeme[1] == "else"):
+               #if the expr comes out false, execute the code only if this is in a valid execution block
                if (not expr_value):
                   getNextLexeme()
                   stmt_list(if_execute, 1)
                else:
                   getNextLexeme()
                   stmt_list(0,1)
+               #end keyword, end of if statement
                if (nextLexeme[1] == "end"):
                   getNextLexeme()
                else:
                   error("END", "IF_STMT")
             else:
                error("ELSE", "IF_STMT")
+
       #for loops, not doing it
       elif (nextLexeme[1] == "for"):
          pass
+
       #assign statement
+      #assign = ID '=' <expr>
       elif (nextLexeme[0] == "ID"):
          var_name = nextLexeme[1]
          getNextLexeme()
-         #equals
+         #equals sign
          if (nextLexeme[0] == "ASSIGN"):
             getNextLexeme()
             result = expr()
+            #check if the expr has an error, which are in the tuple format
             if (type(result) is tuple):
                return result
             if (if_execute):
@@ -358,20 +404,28 @@ def parser(fileHandle):
          else:
             error("ASSIGN","ASSIGN_STMT")
 
+      #comment statement 
+      #comment = #<anything>\n
       elif (nextLexeme[0] == "COMMENT"):
          #insert statement end after a comment for my own sanity
          nextLexeme = ("STMT_END", ";")
+      
+      #statement has nothing in it or and invalid word, do nothing
       else:
          return 0
 
+   #stmt_list = stmt ; stmt_list
+   #only validly ended by EOF, ELSE, or END
    def stmt_list(if_execute, in_if):
       #print("Entering stmt_list")
       result = stmt(if_execute)
       if (type(result) is tuple):
             return result
+
       while(nextLexeme[0] == "STMT_END"):
          getNextLexeme()
          stmt(if_execute)
+
       #determine if the statement list is currently inside an if statemet
       if (in_if):
          if (nextLexeme[1] != "end" and nextLexeme[1] != "else"):
@@ -383,7 +437,7 @@ def parser(fileHandle):
    getNextLexeme()
    return stmt_list(1, 0)
       
-
+#error() prints an error message about an item at the defined place
 def error(item, place):
       print("Parser Error:" + item + " at " + place)
 
@@ -416,4 +470,5 @@ def main():
    #   nextToken = lexer(fHandle)
    #fHandle.close()
    
+#runs the program
 main()
