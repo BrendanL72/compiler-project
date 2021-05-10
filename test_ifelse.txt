@@ -1,7 +1,7 @@
 get x;
 get y;
 get z;
-if ( x > y and y) - z
+if (x > y and y) - z
 then
 print "\t It is true!\n";
 else
