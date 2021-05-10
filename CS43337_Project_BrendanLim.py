@@ -1,9 +1,4 @@
-#lexer() reads the program files character by character and determines if the characters forms valid lexemes
-#It then adds these lexemes into a list of lexemes to be examined for syntax by the parser
-#This code is very heavily based off of the code found in the book, except in Python
-def lexer(fileHandle):
-   #tokens are going to be strings because python doesn't support define
-   token_list = {
+token_list = {
       "(": "PAREN_OPEN",
       ")": "PAREN_CLOSE",
       "+": "OP_ADD",
@@ -21,10 +16,15 @@ def lexer(fileHandle):
       ";": "STMT_END"
    }
 
-   keywords = ["if", "then", "else", "end", 
-               "for", "while", "do", "end", 
-               "not", "and", "or", 
-               "print", "get"]
+keywords = ["if", "then", "else", "end", 
+            "for", "while", "do", "end", 
+            "not", "and", "or", 
+            "print", "get"]
+#lexer() reads the program files character by character and determines if the characters forms valid lexemes
+#It then adds these lexemes into a list of lexemes to be examined for syntax by the parser
+#This code is very heavily based off of the code found in the book, except in Python
+def lexer(fileHandle):
+   #tokens are going to be strings because python doesn't support define
 
    lexeme = ''
    nextChar = fileHandle.read(1)
@@ -36,6 +36,7 @@ def lexer(fileHandle):
    def getChar():
       nonlocal nextChar
       nextChar = fileHandle.read(1)
+      #print(nextChar)
       if not nextChar:
          nextChar = "EOF"
          
@@ -100,9 +101,12 @@ def lexer(fileHandle):
 
    elif (nextChar.isnumeric()):
       #INTs
+      addChar()
       getChar()
       while (nextChar.isnumeric() and addChar()):
          getChar()
+      if (nextChar != "EOF"):
+         fileHandle.seek(fileHandle.tell()-1)
       token = "INT"
    
    elif (nextChar == '#'):
@@ -133,7 +137,7 @@ def lexer(fileHandle):
 #parser() takes the list of lexemes and determines if they are in a valid order using Recursive Descent Parsing
 #It returns an int that reperesents an error code. 0 means that the order is valid. Anything else means that the order is invalid.
 def parser(fileHandle):
-   print("parsing...")
+   #print("parsing...")
    nextLexeme = (0,0)
 
    variables = {}
@@ -141,25 +145,24 @@ def parser(fileHandle):
    def getNextLexeme():
       nonlocal nextLexeme
       nextLexeme = lexer(fileHandle)
-      print(nextLexeme)
+      #print(nextLexeme)
 
    def error(missingItem, place):
       print("Parser Error:" + missingItem + " at " + place)
 
    #value term
    def value():
-      print("Entering value")
+      #print("Entering value")
       #open parentheses
       if (nextLexeme[0] == "PAREN_OPEN"):
          getNextLexeme()
          expr1 = expr()
          if (nextLexeme[0] == "PAREN_CLOSE"):
             getNextLexeme()
-            print("exiting value")
+            #print("exiting value")
             return expr1
          else:
-            error("PAREN_CLOSE", "value")
-            return 0
+            return ("PAREN_CLOSE", "value")
 
       #not <value>
       elif (nextLexeme[1] == "not"):
@@ -175,12 +178,13 @@ def parser(fileHandle):
       #token is an ID or an INT
       elif (nextLexeme[0] == "ID"):
          if (nextLexeme[1] in variables.keys()):
-            print("Exiting value: ID")
+            #print("Exiting value: ID")
             thing = nextLexeme[1]
             getNextLexeme()
             return variables[thing]
          else:
-            print("Variable does not exist.")
+            #print("Variable does not exist.")
+            return ("variable does not exist", "VALUE")
       elif (nextLexeme[0] == "INT"):
          thing = nextLexeme[1]
          getNextLexeme()
@@ -191,7 +195,7 @@ def parser(fileHandle):
          return ("INVALID_VALUE", "VALUE")
 
    def factor():
-      print("Entering factor")
+      #print("Entering factor")
       comparison_ops = [">", ">=", "<", "<=", "==", "!="] 
       value1 = value()
       if (value1 != ("ERROR", "VALUE")):
@@ -199,7 +203,7 @@ def parser(fileHandle):
             comp_value = nextLexeme[1]
             getNextLexeme()
             value2 = value()
-            print("Exiting factor")
+            #print("Exiting factor")
             if (comp_value == comparison_ops[0]):
                value1 = value1 > value2
             elif (comp_value == comparison_ops[1]):
@@ -207,27 +211,27 @@ def parser(fileHandle):
             elif (comp_value == comparison_ops[2]):
                value1 = value1 < value2
             elif (comp_value == comparison_ops[3]):
-               value1 = value1 < value2
+               value1 = value1 <= value2
             elif (comp_value == comparison_ops[4]):
-               value1 = value1 < value2
+               value1 = value1 == value2
             elif (comp_value == comparison_ops[5]):
-               value1 = value1 < value2
+               value1 = value1 != value2
             else:
                #error
                return ("COMP_OPs", "FACTOR")
-      print("Exiting factor:" + str(value1))
+      #print("Exiting factor:" + str(value1))
       return value1
    
    def term():
-      print("Entering term")
+      #print("Entering term")
       mult_ops = ["*", "/", "%"]
       factor1 = factor()
       if (type(factor1) is not tuple):
-         while(nextLexeme[0] in mult_ops):
+         while(nextLexeme[1] in mult_ops):
             mult_value = nextLexeme[1]
             getNextLexeme()
             factor2 = factor()
-            print("Exiting term")
+            #print("Exiting term")
             if (mult_value == mult_ops[0]):
                factor1 = factor1 * factor2
             elif (mult_value == mult_ops[1]):
@@ -237,11 +241,11 @@ def parser(fileHandle):
             else:
                #error
                return ("MULT_OPS", "TERM")
-      print("Exiting term:" + str(factor1)) 
+      #print("Exiting term:" + str(factor1)) 
       return factor1
 
    def n_expr():
-      print("Entering n_expr")
+      #print("Entering n_expr")
       term1 = term()
       add_ops = ["+", "-"]
       if (type(term1) is not tuple):
@@ -257,11 +261,11 @@ def parser(fileHandle):
             else:
                #error
                return ("ADD_OPs", "N_EXPR")
-      print("Exiting n_expr:", str(term1))
+      #print("Exiting n_expr:", str(term1))
       return term1
 
    def expr():
-      print("Entering expr")
+      #print("Entering expr")
       n1 = n_expr()
       if (type(n1) is not tuple):
          while (nextLexeme[1] == "and" or nextLexeme[1] == "or"):
@@ -275,19 +279,19 @@ def parser(fileHandle):
             else:
                #error
                return ("AND/OR","EXPR")
-      print("Exiting expr:" + str(n1))
+      #print("Exiting expr:" + str(n1))
       return n1
 
    def stmt(if_execute):
       nonlocal nextLexeme
-      print("Entering stmt")
+      #print("Entering stmt")
       #print
       if (nextLexeme[1] == "print"):
-         print("print statement")
+         #print("print statement")
          getNextLexeme()
          if (nextLexeme[0] == "STRING"):
             if (if_execute):
-               print(nextLexeme[1])
+               print(nextLexeme[1], end='')
             getNextLexeme()
          else:
             if (if_execute):
@@ -302,17 +306,17 @@ def parser(fileHandle):
          if (nextLexeme[0] == "ID"):
             userInput = input()
             if (if_execute):
-               if (userInput.isnumeric()):
+               if (userInput.lstrip("-+").isnumeric()):
                   variables[nextLexeme[1]] = int(userInput)
                else:
                   variables[nextLexeme[1]] = userInput
                getNextLexeme()
-               print(variables)
+               #print(variables)
       #if statement 
       elif (nextLexeme[1] == "if"):
          getNextLexeme()
          expr_value = expr()
-         if (type(result) is tuple):
+         if (type(expr_value) is tuple):
             return result
          if (nextLexeme[1] == "then"):
             if(expr_value):
@@ -338,18 +342,19 @@ def parser(fileHandle):
       #for loops, not doing it
       elif (nextLexeme[1] == "for"):
          pass
-      #assign
+      #assign statement
       elif (nextLexeme[0] == "ID"):
          var_name = nextLexeme[1]
          getNextLexeme()
          #equals
          if (nextLexeme[0] == "ASSIGN"):
+            getNextLexeme()
             result = expr()
             if (type(result) is tuple):
                return result
             if (if_execute):
                variables[var_name] = result
-               print(variables)
+               #print(variables)
          else:
             error("ASSIGN","ASSIGN_STMT")
 
@@ -360,7 +365,7 @@ def parser(fileHandle):
          return 0
 
    def stmt_list(if_execute, in_if):
-      print("Entering stmt_list")
+      #print("Entering stmt_list")
       result = stmt(if_execute)
       if (type(result) is tuple):
             return result
@@ -391,7 +396,7 @@ def main():
    #declare an array of tuples that will keep track of the lexemes and tokens recognized by the lexer in order
    exit_code = parser(fHandle)
    if (exit_code != ("SUCCESS!", "SUCCESS!")):
-      error(exitcode[0], exitcode[1])
+      error(exit_code[0], exit_code[1])
 
    #if (nextToken != (1,0)):
       #print("Parser still under development.")
